@@ -23,22 +23,15 @@ class IceParser:
 	
 
 	# Returns a list of ints representing the current temperature
-	# of all cards in the rack. If there is no driver at a certain
-	# card slot the temp is seen as -1 in the list.
+	# of all cards in the rack. To see which driver corresponds 
+	#to which temperature use getCardsAlive().
 	def getCardTemps(self):
-		curr_pos = 0 
-
 		for driver in self.myice.getDriversAlive():
-			while driver > curr_pos:
-				self.drivertemp.append(-1)
-				curr_pos += 1
-			
 			input = int(self.myice.getMeas(driver,'T'))
-			self.drivertemp.append(input)
-			curr_pos += 1
-				
+			self.drivertemp.append(input)	
 		for i in self.myice.getRacksAlive():
-			self.drivertemp[i*10] = int(self.myice.getMeas(i*10, 'T'))
+			input = int(self.myice.getMeas(i*10, 'T'))
+			self.drivertemp.append(input)
 
 		return self.drivertemp
 
@@ -149,6 +142,8 @@ def main():
 
 	print drivers
 	print drivertemps
+	print supplytemp
+	print drivers
 
 
 

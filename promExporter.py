@@ -23,9 +23,15 @@ class promExporter:
 		for card in self.ice.getCardsAlive():
 			card = str(card)
 			print self.use_ip +  '_icepap_' + card
-			temp_gauge.append(Gauge(self.use_ip +  '_icepap_' + card, 'Temperature of the IcePAP'))
+			temp_gauge.append(Gauge(self.use_ip +  '_icepap_' + card + 'temperature' , 'Temperature of the IcePAP'))
 	
 		return temp_gauge
+
+	def request_icepap_temperature(self, temp_guages):
+		temps = self.ice.getCardTemps()
+		for i in range(len(temp_guages)):
+				temp_guages[i].set(temps[i])
+
 	
 
 
@@ -33,13 +39,9 @@ def main():
 	ex = promExporter('w-kitslab-icepap-11')
 	temp_gauges = ex.setup_temperature_gauge()
 	print "Here"
-	#start_http_server(6122)
+	start_http_server(6122)
 	while True:
-		temp_list = ex.ice.getCardTemps()
-		print temp_list)
-		print len(temp_gauges)
-		for card in ex.ice.getCardsAlive():
-			temp_gauges[card].set(temp_list[card])
+			ex.request_icepap_temperature(temp_gauges)
 
 
 if __name__ == '__main__':
