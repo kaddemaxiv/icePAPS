@@ -1,6 +1,8 @@
 from prometheus_client import start_http_server, Gauge
 from IceParser import *
 import time
+import sys 
+import random 
 
 class promExporter:
 
@@ -23,11 +25,12 @@ class promExporter:
 		for card in self.ice.getCardsAlive():
 			card = str(card)
 			print self.use_ip +  '_icepap_' + card
-			temp_gauge.append(Gauge(self.use_ip +  '_icepap_' + card + 'temperature' , 'Temperature of the IcePAP'))
+			temp_gauge.append(Gauge(self.use_ip +  '_icepap_' + card + '_temperature' , 'Temperature of the IcePAP'))
 	
 		return temp_gauge
 
 	def request_icepap_temperature(self, temp_guages):
+		temps = []
 		temps = self.ice.getCardTemps()
 		for i in range(len(temp_guages)):
 				temp_guages[i].set(temps[i])
@@ -38,10 +41,14 @@ class promExporter:
 def main():
 	ex = promExporter('w-kitslab-icepap-11')
 	temp_gauges = ex.setup_temperature_gauge()
-	print "Here"
 	start_http_server(6122)
 	while True:
+		try:
 			ex.request_icepap_temperature(temp_gauges)
+		except KeyboardInterrupt:
+			print "\nClosing"
+			sys.exit(0)
+
 
 
 if __name__ == '__main__':

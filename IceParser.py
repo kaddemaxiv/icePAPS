@@ -15,37 +15,35 @@ class IceParser:
 		self.myice = EthIcePAP(DNS, 5000)
 		self.totaldrivers = 0
 		time.sleep(1)
-		self.version = {}
-		self.drivertemp = []
-		self.status = []
-		self.alarmstatus = []
-		self.supplytemp = []
+		
 	
 
 	# Returns a list of ints representing the current temperature
 	# of all cards in the rack. To see which driver corresponds 
 	#to which temperature use getCardsAlive().
 	def getCardTemps(self):
+		drivertemp = []
 		for driver in self.myice.getDriversAlive():
 			input = int(self.myice.getMeas(driver,'T'))
-			self.drivertemp.append(input)	
+			drivertemp.append(input)	
 		for i in self.myice.getRacksAlive():
 			input = int(self.myice.getMeas(i*10, 'T'))
-			self.drivertemp.append(input)
+			drivertemp.append(input)
 
-		return self.drivertemp
+		return drivertemp
 
 
 	# Returns a list of ints representingthe temperature of the 
 	# power supplies in the varius controllers in the rack	
 	def getSupplyTemps(self):
+		supplytemp = []
 		for controller in self.myice.getRacksAlive():
 			input = str(controller*10)
 			string = self.myice.sendWriteReadCommand(input + ':?MEAS RT')
 			split = string.split(' ')
 			ret_int = int(split[1])
-			self.supplytemp.append(ret_int)
-		return self.supplytemp	
+			ssupplytemp.append(ret_int)
+		return supplytemp	
 
 
 	# Returns a dict representing the current versions
@@ -78,26 +76,27 @@ class IceParser:
 	# a certain card slot the status is represented
 	# with the value 'EMPTY'.
 	def getStatus(self):
+		status = []
 		curr_pos = 0;
 
 		for driver in self.myice.getDriversAlive():
 			while driver > curr_pos:
-				self.status.append('EMPTY')
+				status.append('EMPTY')
 				curr_pos += 1
 			input = str(driver)
 			
 			string = self.myice.sendWriteReadCommand(input + ':?MODE')
 			split = string.split(' ')
-			self.status.append(split[1])
+			status.append(split[1])
 			curr_pos += 1
 				
 		for i in self.myice.getRacksAlive():
 			input = str(i*10) # CHANGED
 			string = self.myice.sendWriteReadCommand(input + ':?MODE')
 			split = string.split(' ')
-			self.status[i*10] = split[1]
+			status[i*10] = split[1]
 
-		return self.status
+		return status
 
 
 	# Returns a list containing the alarm status of the
@@ -105,11 +104,12 @@ class IceParser:
 	# a certain card slot the status is represented
 	# with the value 'EMPTY'.	
 	def getAlarmStatus(self):
-		curr_pos = 0;
+		alarmstatus = []
 
+		curr_pos = 0;
 		for driver in self.myice.getDriversAlive():
 			while driver > curr_pos:
-				self.alarmstatus.append('EMPTY')
+				alarmstatus.append('EMPTY')
 				curr_pos += 1
 			input = str(driver)
 			#print type(self.status)
@@ -117,16 +117,16 @@ class IceParser:
 			#print type(self.myice.sendWriteReadCommand(input + ':?MODE'))
 			string = self.myice.sendWriteReadCommand(input + ':?ALARM')
 			split = string.split(' ')
-			self.alarmstatus.append(split[1])
+			alarmstatus.append(split[1])
 			curr_pos += 1
 				
 		for i in self.myice.getRacksAlive():
 			input = str(i)
 			string = self.myice.sendWriteReadCommand(input + ':?ALARM')
 			split = string.split(' ')
-			self.alarmstatus[i*10] = split[1]
+			alarmstatus[i*10] = split[1]
 
-		return self.alarmstatus
+		return alarmstatus
 
 		
 	
