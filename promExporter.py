@@ -17,15 +17,15 @@ class promExporter:
  
 
 
-	# Processes the temperature of the IcePAPs on the rack
-	# with adress 'ip'. 
+	# Sets up a list of temperature gauges which will later be
+	# dynamically set.
 	def setup_temperature_gauge(self):
 		for card in self.ice.getCardsAlive():
 			card = str(card)
 			self.temp_gauges.append(Gauge(self.use_ip +  '_icepap_' + card + '_temperature' , 'Temperature of the IcePAP'))
 	
 		
-
+	# 
 	def request_icepap_temperature(self):
 		temps = []
 		temps = self.ice.getCardTemps()
@@ -41,7 +41,7 @@ def main():
 	for i in range(len(ips)):
 		exporters.append(promExporter(ips[i]))
 		exporters[i].setup_temperature_gauge()
-	start_http_server(6122)
+	start_http_server(6123)
 	while True:
 		try:
 			for exporter in exporters:
