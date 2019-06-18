@@ -36,12 +36,35 @@ class promExporter:
 
 
 def main():
-	ips = ['w-kitslab-icepap-11', 'w-kitslab-icepapcmstst-icepap-12']
+	ips = [
+'w-kitslab-icepap-0',
+'w-kitslab-icepap-10',
+'w-kitslab-icepap-19',
+'w-maglab-icepap-0',
+'w-v-kitslab-icepap-ec-0',
+'w-kitslab-icepap-20',
+'w-kitslab-icepap-16',
+'w-v-kitslab-icepap-cc-0',
+'w-kitslab-icepap-17',
+'w-kitslab-icepap-18',
+'w-kitslab-icepap-47',
+'w-kitslab-icepap-11',
+'w-kitslab-icepap-12',
+'w-kitslab-icepap-83',
+'w-icepap-pc-0',
+'w-kitslab-icepap-14',
+'w-kitslab-icepap-15'
+	]
 	exporters = []
+	alive = []
 	for i in range(len(ips)):
 		exporters.append(promExporter(ips[i]))
+		if exporters[i].ice.isAlive():
+			alive.append(ips[i])
 		exporters[i].setup_temperature_gauge()
-	start_http_server(6123)
+	#start_http_server(6122)
+	for ip in alive:
+		print ip + ' is alive'
 	while True:
 		try:
 			for exporter in exporters:
@@ -49,6 +72,7 @@ def main():
 		except KeyboardInterrupt:
 			print "\nClosing"
 			sys.exit(0)
+
 
 
 

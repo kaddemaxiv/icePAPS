@@ -128,6 +128,11 @@ class IceParser:
 
 		return alarmstatus
 
+	# Checks if there are any racks alive on the adress	
+	def isAlive(self):
+		print len(self.myice.getRacksAlive()) > 0
+		return len(self.myice.getRacksAlive()) > 0
+
 		
 	
 
