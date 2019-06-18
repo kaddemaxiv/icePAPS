@@ -13,14 +13,13 @@ class IceParser:
 	# time.sleep()-call is added in the initiation.
 	def __init__(self, DNS):
 		self.myice = EthIcePAP(DNS, 5000)
-		self.totaldrivers = 0
-		time.sleep(1)
-		
-	
+
+		time.sleep(0.01)
+		# self.totaldrivers = 0	
 
 	# Returns a list of ints representing the current temperature
-	# of all cards in the rack. To see which driver corresponds 
-	#to which temperature use getCardsAlive().
+	# of all cards in the closet. To see which driver corresponds 
+	# to which temperature use getCardsAlive().
 	def getCardTemps(self):
 		drivertemp = []
 		for driver in self.myice.getDriversAlive():
@@ -34,7 +33,7 @@ class IceParser:
 
 
 	# Returns a list of ints representingthe temperature of the 
-	# power supplies in the varius controllers in the rack	
+	# power supplies in the varius controllers in the closet	
 	def getSupplyTemps(self):
 		supplytemp = []
 		for controller in self.myice.getRacksAlive():
@@ -47,7 +46,7 @@ class IceParser:
 
 
 	# Returns a dict representing the current versions
-	# of all cards in the rack.The versions of interest
+	# of all cards in the closet.The versions of interest
 	# are :
 	#
 	# 'CONTROLLER'
@@ -72,7 +71,7 @@ class IceParser:
 		return alive_drivers
 
 	# Returns a list containing the status of the
-	# IcePAPs on the rack. If there is no driver in
+	# IcePAPs in the closet. If there is no driver in
 	# a certain card slot the status is represented
 	# with the value 'EMPTY'.
 	def getStatus(self):
@@ -100,7 +99,7 @@ class IceParser:
 
 
 	# Returns a list containing the alarm status of the
-	# IcePAPs on the rack. If there is no driver in
+	# IcePAPs in the closet. If there is no driver in
 	# a certain card slot the status is represented
 	# with the value 'EMPTY'.	
 	def getAlarmStatus(self):
@@ -138,18 +137,11 @@ class IceParser:
 
 def main():
 	ice = IceParser('w-kitslab-icepap-11')
-	drivertemps = ice.getCardTemps()
-	versions = ice.getVersions()
-	status = ice.getStatus()
-	alarmstatus = ice.getAlarmStatus()
-	supplytemp = ice.getSupplyTemps()
-	drivers = ice.getCardsAlive()
-
-	print drivers
-	print drivertemps
-	print supplytemp
-	print drivers
-
+	print 'Hello'
+	time.sleep(0.01)
+	print ice.getCardsAlive()
+	
+	
 
 
 if __name__ == "__main__":
