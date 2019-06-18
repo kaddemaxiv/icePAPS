@@ -5,35 +5,64 @@ import sys
 import random 
 
 class promExporter:
-
-	# Creates an IceParser object that can
-	# read data from IcePAPs at adress 'ip'
+	"""
+	Creates an IceParser instance that can read data from IcePAP drivers
+	at adress 'ip'
+	"""
 	def __init__(self, ip):
 		self.ip = str(ip)
-		self.temp_gauges = []
+		self.icepap_temp_gauges = []
+		self.supply_temp_gauges = []
 		self.use_ip = self.ip.replace('-','_')
 		self.ice = IceParser(self.ip)
 
  
 
+	"""	
+	Sets up a list of temperature gauges which will later be
+	dynamically updated. The gauges represent the controllers
+	/drivers at card slot 'k' in the closet with metric name 
+	format:
+	
+	<ip>_icepap_<k>_temperature
 
-	# Sets up a list of temperature gauges which will later be
-	# dynamically set.
-	def setup_temperature_gauge(self):
+	"""
+	def setup_icepap_temperature_gauge(self):
 		for card in self.ice.getCardsAlive():
 			card = str(card)
-			self.temp_gauges.append(Gauge(self.use_ip +  '_icepap_' + card + '_temperature' , 'Temperature of the IcePAP'))
-	
+			curr = Gauge(self.use_ip +  '_icepap_' + card + '_temperature' , 'Temperature of the IcePAP')
+			self.icepap_temp_gauges.append(curr)
 		
-	# 
+	"""
+	Sets up a list of temperature gauges which will later be
+	dynamically updated. The gauges represent the power supply
+	at controller slot 'k' in the closet with metric name
+	format:
+
+	<ip>_supply_<k>_temperature
+
+	"""
+	def setup_supply_temperature_gauge(self):
+		for controller in self.ice.myice.getRacksAlive():
+			controller = str(controller)
+			curr = Gauge(self.use_ip + '_supply_' + controller + '_temperature', 'Temperature of the power supply')
+			self.supply_temp_gauges.append(curr)
+		
+	"""
+	Requests the temperature of all IcePAPs on the ip given in the constructor
+	"""
 	def request_icepap_temperature(self):
-		temps = []
-		temps = self.ice.getCardTemps()
-		for i in range(len(self.temp_gauges)):
-				self.temp_gauges[i].set(temps[i])
+		icepap_temps = []
+		icepap_temps = self.ice.getCardTemps()
+		for i in range(len(self.icepap_temp_gauges)):
+			self.icepap_temp_gauges[i].set(icepap_temps[i])
 
-	
 
+	def request_supply_temperature(self):
+		supply_temps = []
+		supply_temps = self.ice.getSupplyTemps()
+		for k in range(len(self.supply_temp_gauges)):	
+			self.supply_temp_gauges[k].set(supply_temps[k])
 
 def main():
 	ips = [
@@ -56,19 +85,22 @@ def main():
 'w-kitslab-icepap-15'
 	]
 	exporters = []
+	
 	alive = []
+	# CREATING ICEPAP GAUGES
 	for i in range(len(ips)):
 		exporters.append(promExporter(ips[i]))
-		if exporters[i].ice.isAlive():
-			alive.append(ips[i])
-		exporters[i].setup_temperature_gauge()
-	#start_http_server(6122)
-	for ip in alive:
-		print ip + ' is alive'
+		#if exporters[i].ice.isAlive():
+		#	alive.append(ips[i])
+		exporters[i].setup_icepap_temperature_gauge()
+		exporters[i].setup_supply_temperature_gauge()
+	#print alive
+	start_http_server(6122)
 	while True:
 		try:
 			for exporter in exporters:
 				exporter.request_icepap_temperature()
+				exporter.request_supply_temperature()
 		except KeyboardInterrupt:
 			print "\nClosing"
 			sys.exit(0)

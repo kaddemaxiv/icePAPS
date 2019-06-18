@@ -2,24 +2,28 @@ from pyIcePAP import *
 import time
 import re
 
-# This program contains a class which can be called to extract
-# different series of data from IcePAP drivers and controllers
-# for a given rack in the white system.
+
+"""
+This program contains a class which can be called to extract
+different series of data from IcePAP drivers and controllers
+at a given ip in the white system.
+"""
 class IceParser:
-
-	# Creates an object which will read data from the IcePAPs
-	# At the DNS _____________TBA__________________
-	# NOTE that connecting to the icePAP takes time, thus a 
-	# time.sleep()-call is added in the initiation.
-	def __init__(self, DNS):
-		self.myice = EthIcePAP(DNS, 5000)
-
+	"""
+	Creates an object which will read data from the IcePAPs
+	at the adress 'ip'
+	NOTE that connecting to the icePAP takes time, thus a 
+	time.sleep()-call is added in the initiation.
+	"""
+	def __init__(self, ip):
+		self.myice = EthIcePAP(ip, 5000)
 		time.sleep(0.01)
 		# self.totaldrivers = 0	
-
-	# Returns a list of ints representing the current temperature
-	# of all cards in the closet. To see which driver corresponds 
-	# to which temperature use getCardsAlive().
+	"""
+	Returns a list of ints representing the current temperature
+	of all cards in the closet. To see which driver corresponds 
+	to which temperature use getCardsAlive().
+	"""
 	def getCardTemps(self):
 		drivertemp = []
 		for driver in self.myice.getDriversAlive():
@@ -31,9 +35,10 @@ class IceParser:
 
 		return drivertemp
 
-
-	# Returns a list of ints representingthe temperature of the 
-	# power supplies in the varius controllers in the closet	
+	"""
+	Returns a list of ints representingcthe temperature of the 
+	power supplies in the various controllers in the closet	
+	"""
 	def getSupplyTemps(self):
 		supplytemp = []
 		for controller in self.myice.getRacksAlive():
@@ -41,25 +46,30 @@ class IceParser:
 			string = self.myice.sendWriteReadCommand(input + ':?MEAS RT')
 			split = string.split(' ')
 			ret_int = int(split[1])
-			ssupplytemp.append(ret_int)
+			supplytemp.append(ret_int)
 		return supplytemp	
 
 
-	# Returns a dict representing the current versions
-	# of all cards in the closet.The versions of interest
-	# are :
-	#
-	# 'CONTROLLER'
-	# 'DRIVERS'
-	# 'MCPU0'
-	# 'MCPU1'
-	# 'MCPU2'
-	#
+	"""
+	Returns a dict representing the current versions
+	of all cards in the closet.The versions of interest
+	are:
+
+	'CONTROLLER'
+	'DRIVERS'
+	'MCPU0'
+	'MCPU1'
+	'MCPU2'
+
+	"""
 	def getVersions(self): 
 		return self.myice.getVersionInfoDict(0)			
+	
 
-	# Returns a list containing all the drivers and controllers
-	# which are currently alive
+	"""
+	Returns a list containing all the drivers and controllers
+	which are currently alive
+	"""
 	def getCardsAlive(self):
 		alive_drivers = []
 		for driver in self.myice.getDriversAlive():
@@ -70,10 +80,13 @@ class IceParser:
 		
 		return alive_drivers
 
-	# Returns a list containing the status of the
-	# IcePAPs in the closet. If there is no driver in
-	# a certain card slot the status is represented
-	# with the value 'EMPTY'.
+	
+	"""	
+	Returns a list containing the status of the
+	IcePAPs in the closet. If there is no driver in
+	a certain card slot the status is represented
+	with the value 'EMPTY'.
+	"""
 	def getStatus(self):
 		status = []
 		curr_pos = 0;
@@ -98,10 +111,12 @@ class IceParser:
 		return status
 
 
-	# Returns a list containing the alarm status of the
-	# IcePAPs in the closet. If there is no driver in
-	# a certain card slot the status is represented
-	# with the value 'EMPTY'.	
+	"""
+	Returns a list containing the alarm status of the
+	IcePAPs in the closet. If there is no driver in
+	a certain card slot the status is represented
+	with the value 'EMPTY'.	
+	"""
 	def getAlarmStatus(self):
 		alarmstatus = []
 
@@ -111,9 +126,6 @@ class IceParser:
 				alarmstatus.append('EMPTY')
 				curr_pos += 1
 			input = str(driver)
-			#print type(self.status)
-			#print input + ':?MODE'
-			#print type(self.myice.sendWriteReadCommand(input + ':?MODE'))
 			string = self.myice.sendWriteReadCommand(input + ':?ALARM')
 			split = string.split(' ')
 			alarmstatus.append(split[1])
@@ -127,7 +139,9 @@ class IceParser:
 
 		return alarmstatus
 
-	# Checks if there are any racks alive on the adress	
+	"""
+	Checks if there are any racks alive on the adress
+	"""	
 	def isAlive(self):
 		return len(self.myice.getRacksAlive()) > 0
 
@@ -135,11 +149,13 @@ class IceParser:
 	
 
 def main():
-	ice = IceParser('w-kitslab-icepap-11')
-	print 'Hello'
+	ice1 = IceParser('w-kitslab-icepap-10')
+	ice2 = IceParser('w-kitslab-icepap-11')
+	ice3 = IceParser('w-kitslab-icepap-12')
 	time.sleep(0.01)
-	print ice.getCardsAlive()
-	
+	print ice1.getSupplyTemps()
+	print ice2.getSupplyTemps()
+	print ice3.getSupplyTemps()
 	
 
 
