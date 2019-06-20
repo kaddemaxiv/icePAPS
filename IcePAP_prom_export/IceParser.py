@@ -51,24 +51,32 @@ class IceParser:
 
 
 	"""
-	Returns a dict representing the current versions
+	Returns a list of dicts representing the current versions
 	of all cards in the closet.The versions of interest
 	are:
 
 	'CONTROLLER'
 	'DRIVERS'
-	'MCPU0'
-	'MCPU1'
-	'MCPU2'
+	'DPS'
+	'FPGA'
+	'MCPU0' |
+	'MCPU1' | <-- Only for masters
+	'MCPU2' |
 
 	"""
-	def getVersions(self): 
-		return self.myice.getVersionInfoDict(0)			
-	
+	def getVersionsList(self): 
+		version_list = []
+		for card in self.getCardsAlive():
+			version_list.append(self.myice.getVersionInfoDict(card))
+		return version_list
 
 	"""
 	Returns a list containing all the drivers and controllers
-	which are currently alive
+	which are currently alive on the format:
+		
+		[1, 2, 3, 4, ..., 27, 0, 10, 20]
+		^all active drivers^  	^ all active controllers 
+
 	"""
 	def getCardsAlive(self):
 		alive_drivers = []
@@ -88,27 +96,15 @@ class IceParser:
 	with the value 'EMPTY'.
 	"""
 	def getStatus(self):
-		status = []
-		curr_pos = 0;
+		status_list = []
 
-		for driver in self.myice.getDriversAlive():
-			while driver > curr_pos:
-				status.append('EMPTY')
-				curr_pos += 1
-			input = str(driver)
-			
+		for card in self.getCardsAlive():
+			input = str(card)
 			string = self.myice.sendWriteReadCommand(input + ':?MODE')
 			split = string.split(' ')
-			status.append(split[1])
-			curr_pos += 1
-				
-		for i in self.myice.getRacksAlive():
-			input = str(i*10) # CHANGED
-			string = self.myice.sendWriteReadCommand(input + ':?MODE')
-			split = string.split(' ')
-			status[i*10] = split[1]
+			status_list.append(split[1])
+		return status_list
 
-		return status
 
 
 	"""
@@ -118,26 +114,14 @@ class IceParser:
 	with the value 'EMPTY'.	
 	"""
 	def getAlarmStatus(self):
-		alarmstatus = []
+		alarmstatus_list = []
 
-		curr_pos = 0;
-		for driver in self.myice.getDriversAlive():
-			while driver > curr_pos:
-				alarmstatus.append('EMPTY')
-				curr_pos += 1
-			input = str(driver)
+		for card in self.getCardsAlive():
+			input = str(card)
 			string = self.myice.sendWriteReadCommand(input + ':?ALARM')
 			split = string.split(' ')
-			alarmstatus.append(split[1])
-			curr_pos += 1
-				
-		for i in self.myice.getRacksAlive():
-			input = str(i)
-			string = self.myice.sendWriteReadCommand(input + ':?ALARM')
-			split = string.split(' ')
-			alarmstatus[i*10] = split[1]
-
-		return alarmstatus
+			alarmstatus_list.append(split[1])
+		return alarmstatus_list
 
 	"""
 	Checks if there are any racks alive on the adress
@@ -149,14 +133,21 @@ class IceParser:
 	
 
 def main():
-	ice1 = IceParser('w-kitslab-icepap-10')
-	ice2 = IceParser('w-kitslab-icepap-11')
-	ice3 = IceParser('w-kitslab-icepap-12')
-	time.sleep(0.01)
-	print ice1.getSupplyTemps()
-	print ice2.getSupplyTemps()
-	print ice3.getSupplyTemps()
+	paps = [
+	IceParser('w-kitslab-icepap-10'),
+	IceParser('w-kitslab-icepap-11'),
+	IceParser('w-kitslab-icepap-12')
+	]
 	
+	status_list = paps[0].getStatus()
+
+	time.sleep(0.01)
+	for pap in paps:
+		cards_alive = pap.getCardsAlive()
+		status_list = pap.getStatus()
+		print cards_alive
+		print status_list
+
 
 
 if __name__ == "__main__":
