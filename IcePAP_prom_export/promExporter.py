@@ -84,21 +84,21 @@ def main():
 'w-kitslab-icepap-14',
 'w-kitslab-icepap-15'
 	]
-	exporters = []
+	parsers = []
 	
 	alive = []
 	# CREATING ICEPAP GAUGES
 	for i in range(len(ips)):
-		exporters.append(promExporter(ips[i]))
-		#if exporters[i].ice.isAlive():
+		parsers.append(promExporter(ips[i]))
+		#if	parsers[i].ice.isAlive():
 		#	alive.append(ips[i])
-		exporters[i].setup_icepap_temperature_gauge()
-		exporters[i].setup_supply_temperature_gauge()
+		parsers[i].setup_icepap_temperature_gauge()
+		parsers[i].setup_supply_temperature_gauge()
 	#print alive
 	start_http_server(6122)
 	while True:
 		try:
-			for exporter in exporters:
+			for exporter in	parsers:
 				exporter.request_icepap_temperature()
 				exporter.request_supply_temperature()
 		except KeyboardInterrupt:
