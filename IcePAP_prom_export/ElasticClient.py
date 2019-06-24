@@ -17,10 +17,13 @@ class ElasticClient:
 		self.status_list = []
 
 	"""
-	Updates all information of all cards in the locker at
+	Sets up all information of all cards in the locker at
 	adress 'ip' stores it on the Elasticsearch server as:
-	<ip>/_doc/<icepap_nr>
 
+	<ip>/_doc/<icepap_nr>
+	
+	Takes a fair bit of time, and should thus only be run
+	at start up and on very special occasions.
 	"""
 	def setup_cards(self, server):
 		versions_list = self.ice.getVersionsList()
@@ -31,16 +34,17 @@ class ElasticClient:
 			json_body = versions_list[i]
 			json_body.update({'alarm':alarm_list[i],'status':status_list[i], 'card':cards[i]})
 			server.index(index=self.ip, id=cards[i], body=json_body)
-		##for card in self.ice.getCardsAlive():
-		#	print "hello"
+		
 
 	def update_status(self, server):
+		# The ip is the index of the different 
+		cards = self.ice.getCardsAlive()
 		alarm_list = self.ice.getAlarmStatus()
 		status_list = self.ice.getStatus()
-		cards = self.ice.getCardsAlive()
-		for i in range(len(status_list)):
-			print "hello"
-
+	
+		for i in range(len(cards)):
+			json_body = {'alarm':alarm_list[i], 'status':status_list[i]}
+			server.update(index=self.ip, id=cards[i], body={"doc":json_body})
 
 
 
@@ -76,7 +80,7 @@ def main():
 	server = Elasticsearch(['localhost:9200'])
 	for parser in parsers:
 		parser.setup_cards(server)
-		print parser.ip + ' done'
+		print parser.ip + " done"
 	"""
 	parsers[11].setup_cards(server)
 	print server.get(index='w-kitslab-icepap-11', id=0)['_source']
@@ -89,6 +93,10 @@ def main():
 	while True:
 		try:
 			time.sleep(3)
+			for parser in parsers:
+				parser.update_status(server)
+				print parser.ip + ' done'
+			print "All done"
 		except KeyboardInterrupt:
 			server.delete()
 			print '\nClosing'
