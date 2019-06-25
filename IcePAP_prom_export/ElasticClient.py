@@ -18,7 +18,7 @@ class ElasticClient:
 
 	"""
 	Sets up all information of all cards in the locker at
-	adress 'ip' stores it on the Elasticsearch server as:
+	adress 'ip' and stores it on the Elasticsearch server at:
 
 	<ip>/_doc/<icepap_nr>
 	
@@ -36,6 +36,16 @@ class ElasticClient:
 			server.index(index=self.ip, id=cards[i], body=json_body)
 		
 
+	"""
+	Updates the status and alarm status of all cards in a
+	locker at adress 'ip'. Changes are made to the doc at
+
+	<ip>/_doc/icepap_nr
+
+	This method is much faster than setup_cards() since we
+	don't have to extract the version data. 
+
+	"""
 	def update_status(self, server):
 		# The ip is the index of the different 
 		cards = self.ice.getCardsAlive()
@@ -92,11 +102,14 @@ def main():
 	print "Done"
 	while True:
 		try:
-			time.sleep(3)
-			for parser in parsers:
-				parser.update_status(server)
-				print parser.ip + ' done'
+			
+			#for parser in parsers:
+			#	parser.update_status(server)
+			#	print parser.ip + ' done'
+			res = server.search(index='w-kitslab-icepap-12', body={"query":{"match_all":{}}})
+			print res
 			print "All done"
+			time.sleep(150)
 		except KeyboardInterrupt:
 			server.delete()
 			print '\nClosing'
