@@ -1,4 +1,6 @@
 from elasticsearch import Elasticsearch
+import MySQLdb as db
+import socket
 import time
 import sys
 from IceParser import *
@@ -6,26 +8,27 @@ from IceParser import *
 class ElasticClient:
 
 
-	"""
-	Creates a connection to a IcePAP locker with adress 'ip'
-	"""
 	def __init__(self, ip):
+		"""
+		Creates a connection to a IcePAP locker with adress 'ip'
+		"""
 		self.ip = str(ip)
 		self.ice = IceParser(self.ip)
 		self.versions_list = []
 		self.alarm_list = []
 		self.status_list = []
 
-	"""
-	Sets up all information of all cards in the locker at
-	adress 'ip' and stores it on the Elasticsearch server at:
 
-	<ip>/_doc/<icepap_nr>
-	
-	Takes a fair bit of time, and should thus only be run
-	at start up and on very special occasions.
-	"""
 	def setup_cards(self, server):
+		"""
+		Sets up all information of all cards in the locker at
+		adress 'ip' and stores it on the Elasticsearch server at:
+
+		<ip>/_doc/<icepap_nr>
+		
+		Takes a fair bit of time, and should thus only be run
+		at start up and on very special occasions.
+		"""
 		versions_list = self.ice.getVersionsList()
 		alarm_list = self.ice.getAlarmStatus()
 		status_list = self.ice.getStatus()
@@ -36,18 +39,18 @@ class ElasticClient:
 			server.index(index=self.ip, id=cards[i], body=json_body)
 		
 
-	"""
-	Updates the status and alarm status of all cards in a
-	locker at adress 'ip'. Changes are made to the doc at
-
-	<ip>/_doc/icepap_nr
-
-	This method is much faster than setup_cards() since we
-	don't have to extract the version data. 
-
-	"""
+	
 	def update_status(self, server):
-		# The ip is the index of the different 
+		"""
+		Updates the status and alarm status of all cards in a
+		locker at adress 'ip'. Changes are made to the doc at
+
+		<ip>/_doc/icepap_nr
+
+		This method is much faster than setup_cards() since we
+		don't have to extract the version data. 
+
+		"""
 		cards = self.ice.getCardsAlive()
 		alarm_list = self.ice.getAlarmStatus()
 		status_list = self.ice.getStatus()
@@ -57,40 +60,60 @@ class ElasticClient:
 			server.update(index=self.ip, id=cards[i], body={"doc":json_body})
 
 
+def get_icepapcms_host():
+	"""
+	Returns a list of all IcePAP hostnames in the network
+	"""
+	connector = db.connect("w-v-kitslab-csdb-0",  "icepapcms","icepapcms", "icepapcms", port=3306)
+	cursor = connector.cursor()
+	sql_query = "SELECT host FROM icepapsystem;"
+	size = cursor.execute(sql_query)
+	output = cursor.fetchall()
+	ips = []
+	for ip in [a[0] for a in output]:
+		try:
+			ips.append(socket.gethostbyaddr(ip)[0].split(".")[0])
+		except socket.herror:
+			print("Fail to resolve dns name {}".format(ip))
+		except socket.gaierror:
+			print("Fail to resolve dns name {}".format(ip))
+	return ips
+
 
 def main():
-	ips = [
-'w-kitslab-icepap-0',
-'w-kitslab-icepap-10',
-'w-kitslab-icepap-19',
-'w-maglab-icepap-0',
-'w-v-kitslab-icepap-ec-0',
-'w-kitslab-icepap-20',
-'w-kitslab-icepap-16',
-'w-v-kitslab-icepap-cc-0',
-'w-kitslab-icepap-17',
-'w-kitslab-icepap-18',
-'w-kitslab-icepap-47',
-'w-kitslab-icepap-11',
-'w-kitslab-icepap-12',
-'w-kitslab-icepap-83',
-'w-icepap-pc-0',
-'w-kitslab-icepap-14',
-'w-kitslab-icepap-15'
-]
+	ips = get_icepapcms_host() 
+	"""[
+			'w-kitslab-icepap-0',
+			'w-kitslab-icepap-10',
+			'w-kitslab-icepap-19',
+			'w-maglab-icepap-0',
+			'w-v-kitslab-icepap-ec-0',
+			'w-kitslab-icepap-20',
+			'w-kitslab-icepap-16',
+			'w-v-kitslab-icepap-cc-0',
+			'w-kitslab-icepap-17',
+			'w-kitslab-icepap-18',
+			'w-kitslab-icepap-47',
+			'w-kitslab-icepap-11',
+			'w-kitslab-icepap-12',
+			'w-kitslab-icepap-83',
+			'w-icepap-pc-0',
+			'w-kitslab-icepap-14',
+			'w-kitslab-icepap-15'
+		]"""
 
-	parsers = []
+	icepaps = []
 
 #CREATING ICEPAP PARSERS FOR EVERY ADRESS IN ips
 	for ip in ips:
-		parsers.append(ElasticClient(ip))
+		icepaps.append(ElasticClient(ip))
 	
 	# Actually works!!!
 	
 	server = Elasticsearch(['localhost:9200'])
-	for parser in parsers:
-		parser.setup_cards(server)
-		print parser.ip + " done"
+	for icepap in icepaps:
+		icepap.setup_cards(server)
+		print icepap.ip + " done"
 	"""
 	parsers[11].setup_cards(server)
 	print server.get(index='w-kitslab-icepap-11', id=0)['_source']
@@ -99,19 +122,15 @@ def main():
 	#es = Elasticsearch(['localhost:9200'])
 
 	#Runs script indefinetly
-	print "Done"
+	print "All done"
 	while True:
 		try:
-			
-			#for parser in parsers:
-			#	parser.update_status(server)
-			#	print parser.ip + ' done'
-			res = server.search(index='w-kitslab-icepap-12', body={"query":{"match_all":{}}})
-			print res
-			print "All done"
-			time.sleep(150)
+			time.sleep(15)
+			for icepap in icepaps:
+				icepap.update_status(server)
+				print icepap.ip + ' updated'
 		except KeyboardInterrupt:
-			server.delete()
+			server.delete(index='/_all')
 			print '\nClosing'
 			sys.exit(0)
 
