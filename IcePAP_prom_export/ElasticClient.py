@@ -114,6 +114,8 @@ def main():
 	for icepap in icepaps:
 		icepap.setup_cards(server)
 		print icepap.ip + " done"
+
+	server.index(index='w-kitslab-icepap-11', id=21, body={"manama":"jeff"})
 	"""
 	parsers[11].setup_cards(server)
 	print server.get(index='w-kitslab-icepap-11', id=0)['_source']
