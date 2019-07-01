@@ -4,6 +4,7 @@ import socket
 import time
 import sys
 from IceParser import *
+from datetime import datetime
 
 class ElasticClient:
 
@@ -32,10 +33,15 @@ class ElasticClient:
 		versions_list = self.ice.getVersionsList()
 		alarm_list = self.ice.getAlarmStatus()
 		status_list = self.ice.getStatus()
+		warning_list = self.ice.getWarnings()
+
+		dateTimeObj = datetime.now()
+		timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S)")
 		cards = self.ice.getCardsAlive()
 		for i in range(len(versions_list)):
 			json_body = versions_list[i]
-			json_body.update({'alarm':alarm_list[i],'status':status_list[i], 'card':cards[i]})
+			
+			json_body.update({'alarm':alarm_list[i],'status':status_list[i], 'card':cards[i], 'warning':warning_list[i],'update':timestampStr})
 			server.index(index=self.ip, id=cards[i], body=json_body)
 		
 
@@ -54,9 +60,12 @@ class ElasticClient:
 		cards = self.ice.getCardsAlive()
 		alarm_list = self.ice.getAlarmStatus()
 		status_list = self.ice.getStatus()
-	
+		warning_list = self.ice.getWarnings()
+
+		dateTimeObj = datetime.now()
+		timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S)")
 		for i in range(len(cards)):
-			json_body = {'alarm':alarm_list[i], 'status':status_list[i]}
+			json_body = {'alarm':alarm_list[i], 'status':status_list[i], 'warning':warning_list[i], 'update':timestampStr}
 			server.update(index=self.ip, id=cards[i], body={"doc":json_body})
 
 
@@ -115,7 +124,7 @@ def main():
 		icepap.setup_cards(server)
 		print icepap.ip + " done"
 
-	server.index(index='w-kitslab-icepap-11', id=21, body={"manama":"jeff"})
+	server.index(index='test', id=21, body={"change":1})
 	"""
 	parsers[11].setup_cards(server)
 	print server.get(index='w-kitslab-icepap-11', id=0)['_source']
@@ -127,12 +136,14 @@ def main():
 	print "All done"
 	while True:
 		try:
-			time.sleep(15)
+			time.sleep(5)
+			count = 1
 			for icepap in icepaps:
 				icepap.update_status(server)
 				print icepap.ip + ' updated'
+				count += 1
+				server.index(index='test', id=21, body={"change":count})
 		except KeyboardInterrupt:
-			server.delete(index='/_all')
 			print '\nClosing'
 			sys.exit(0)
 

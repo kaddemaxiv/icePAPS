@@ -9,14 +9,17 @@ import random
 class newExp:
 
 
-	def __init__(self, ip, gauge):
+	def __init__(self, ip, temp_gauge, version_gauge, status_gauge):
 		"""
 		Creates an IceParser instance that can read data from IcePAP drivers
 		at adress 'ip'
 		"""
 		self.ip = str(ip)
 		self.ice = IceParser(self.ip)
-		self.gauge = gauge
+		self.temp_gauge = temp_gauge
+		self.version_gauge = version_gauge
+		self.status_gauge = status_gauge
+
 
 
 	def request_icepap_temperature(self):
@@ -28,13 +31,26 @@ class newExp:
 		icepap_temps = self.ice.getCardTemps()
 		icepaps_alive = self.ice.getCardsAlive()
 		for card_temp, card in zip(icepap_temps, icepaps_alive):
-			self.gauge.labels(self.ip, card).set(card_temp)
+			self.temp_gauge.labels(self.ip, card).set(card_temp)
 
 		supply_temps = self.ice.getSupplyTemps()
 		racks_alive = self.ice.myice.getRacksAlive()
 		for supply_temp, rack in zip(supply_temps, racks_alive):
-			self.gauge.labels(self.ip, 'supply_' + str(rack)).set(supply_temp)
+			self.temp_gauge.labels(self.ip, 'supply_' + str(rack)).set(supply_temp)
 
+	def request_icepap_status(self):
+
+		alarm_list = self.ice.getAlarmStatus()
+		status_list = self.ice.getStatus()
+		cards = self.ice.getCardsAlive()
+
+		for i in range(len(status_list)):
+			self.status_gauge.labels(self.ip, cards[i], status_list[i], alarm_list[i]).set(0)
+
+	
+	def request_icepap_versions(self):
+		versions_list = self.ice.getVersionsList()
+		
 
 
 def get_icepapcms_host():
@@ -62,23 +78,43 @@ def main():
 
 	print "Create exporters"
 
-	gauge = Gauge('icepap_temperature', 'Temperature of the IcePAP', ('host', 'card'))
+	temp_gauge = Gauge('icepap_temperature', 'Temperature of the IcePAP', ('host', 'card'))
 
+	version_gauge = Gauge('loops_since_last_version_update', 'The number of loops since a ' + 
+		'version update query was last executed',
+		('host', 'card','CONTROLLER','DRIVER','DSP','FPGA','MCPU0', 'MCPU1','MCPU2'))
+
+	status_gauge = Gauge('loops_since_last_status_update','The number of loops since a ' + 
+		'status update query was last executed', ('host', 'card','STATUS','ALARM'))
+	
 	exporters = []
+
+	test_gauge = Gauge('test_gauge', 'testing visibility',('host', 'card', 'message'))
+
 	for ip in ips:
-		exporters.append(newExp(ip, gauge))
+		exporters.append(newExp(ip, temp_gauge, version_gauge, status_gauge))
 
 	print "Start serving"
 	start_http_server(6122)
+	count = 0
 	while True:
 		try:
-			print "loop"
+			if count < 5:
+				test_gauge.labels('someip', 'card0', 'none').set(count)
+			else:
+				test_gauge.labels('someip', 'card0', 'some message').set(9)
+			print "Requesting IcePAP temperatures"
 			for exporter in exporters:
 				exporter.request_icepap_temperature()
+			time.sleep(10)
+			count += 1
+			
+
+
 		except KeyboardInterrupt:
 			print "\nClosing"
 			sys.exit(0)
-			
+	
 
 if __name__=="__main__":
 	main()

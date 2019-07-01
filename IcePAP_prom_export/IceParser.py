@@ -132,6 +132,19 @@ class IceParser:
 			alarmstatus_list.append(split[1])
 		return alarmstatus_list
 
+	def getWarnings(self):
+		warning_list = []
+
+		for card in self.getCardsAlive():
+			input = str(card)
+			list = (self.myice.sendWriteReadCommand(input + ':?WARNING'))
+			if "NONE" not in list:
+				retString= list.split('\r\n')[1]
+			else:
+				retString = "NONE"
+			warning_list.append(retString)
+		return warning_list
+
 	
 	def isAlive(self):
 		"""
@@ -155,10 +168,10 @@ def main():
 	for pap in paps:
 		cards_alive = pap.getCardsAlive()
 		status_list = pap.getStatus()
-		print(cards_alive)
-		print(status_list)
-
-
+		#print(cards_alive)
+		#print(status_list)
+		print pap.getWarnings()
+		
 
 if __name__ == "__main__":
 	main()
