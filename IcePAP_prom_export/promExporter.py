@@ -5,11 +5,12 @@ import socket
 import time
 import sys
 import random
+from datetime import datetime, timedelta
 
-class newExp:
+class promExporter:
 
 
-	def __init__(self, ip, temp_gauge, version_gauge, status_gauge):
+	def __init__(self, ip, temp_gauge):
 		"""
 		Creates an IceParser instance that can read data from IcePAP drivers
 		at adress 'ip'
@@ -17,8 +18,6 @@ class newExp:
 		self.ip = str(ip)
 		self.ice = IceParser(self.ip)
 		self.temp_gauge = temp_gauge
-		self.version_gauge = version_gauge
-		self.status_gauge = status_gauge
 
 
 
@@ -37,27 +36,15 @@ class newExp:
 		racks_alive = self.ice.myice.getRacksAlive()
 		for supply_temp, rack in zip(supply_temps, racks_alive):
 			self.temp_gauge.labels(self.ip, 'supply_' + str(rack)).set(supply_temp)
-
-	def request_icepap_status(self):
-
-		alarm_list = self.ice.getAlarmStatus()
-		status_list = self.ice.getStatus()
-		cards = self.ice.getCardsAlive()
-
-		for i in range(len(status_list)):
-			self.status_gauge.labels(self.ip, cards[i], status_list[i], alarm_list[i]).set(0)
-
-	
-	def request_icepap_versions(self):
-		versions_list = self.ice.getVersionsList()
 		
 
-
-def get_icepapcms_host():
+def get_icepapcms_host(cabledb, temp_gauge):
 	"""
 	Returns a list of all IcePAP hostnames in the network
 	"""
-	connector = db.connect("w-v-kitslab-csdb-0",  "icepapcms","icepapcms", "icepapcms", port=3306)
+	# w-network: w-v-kitslab-csdb-0
+	
+	connector = db.connect(cabledb,  "icepapcms","icepapcms", "icepapcms", port=3306)
 	cursor = connector.cursor()
 	sql_query = "SELECT host FROM icepapsystem;"
 	size = cursor.execute(sql_query)
@@ -70,49 +57,32 @@ def get_icepapcms_host():
 			print("Fail to resolve dns name {}".format(ip))
 		except socket.gaierror:
 			print("Fail to resolve dns name {}".format(ip))
-	return ips
+	exporters = []		
+	for ip in ips:
+		exporters.append(promExporter(ip, temp_gauge))
+	return exporters
 
 
 def main():
-	ips = get_icepapcms_host()
-
-	print "Create exporters"
-
+	cabledb = sys.argv[1]
 	temp_gauge = Gauge('icepap_temperature', 'Temperature of the IcePAP', ('host', 'card'))
-
-	version_gauge = Gauge('loops_since_last_version_update', 'The number of loops since a ' + 
-		'version update query was last executed',
-		('host', 'card','CONTROLLER','DRIVER','DSP','FPGA','MCPU0', 'MCPU1','MCPU2'))
-
-	status_gauge = Gauge('loops_since_last_status_update','The number of loops since a ' + 
-		'status update query was last executed', ('host', 'card','STATUS','ALARM'))
+	exporters = get_icepapcms_host(cabledb, temp_gauge)
 	
-	exporters = []
 
-	test_gauge = Gauge('test_gauge', 'testing visibility',('host', 'card', 'message'))
-
-	for ip in ips:
-		exporters.append(newExp(ip, temp_gauge, version_gauge, status_gauge))
-
-	print "Start serving"
 	start_http_server(6122)
-	count = 0
+	update_time = datetime.now() + timedelta(hours=12)
 	while True:
 		try:
-			if count < 5:
-				test_gauge.labels('someip', 'card0', 'none').set(count)
-			else:
-				test_gauge.labels('someip', 'card0', 'some message').set(9)
-			print "Requesting IcePAP temperatures"
+			# Once every 12 hours the list of IcePAP temperatures will update.
+			
 			for exporter in exporters:
 				exporter.request_icepap_temperature()
 			time.sleep(10)
-			count += 1
-			
-
-
+			if datetime.now() > update_time:
+				exporters = get_icepapcms_host(cabledb, temp_gauge)
+				update_time = datetime.now() + timedelta(hours=12)
+				print "UPDATED"
 		except KeyboardInterrupt:
-			print "\nClosing"
 			sys.exit(0)
 	
 

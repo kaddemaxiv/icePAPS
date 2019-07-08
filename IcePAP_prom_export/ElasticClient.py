@@ -4,7 +4,7 @@ import socket
 import time
 import sys
 from IceParser import *
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class ElasticClient:
 
@@ -25,7 +25,7 @@ class ElasticClient:
 		Sets up all information of all cards in the locker at
 		adress 'ip' and stores it on the Elasticsearch server at:
 
-		<ip>/_doc/<icepap_nr>
+		icepap_info/_doc/<hostname>_<cardNbr>
 		
 		Takes a fair bit of time, and should thus only be run
 		at start up and on very special occasions.
@@ -40,23 +40,24 @@ class ElasticClient:
 		cards = self.ice.getCardsAlive()
 		for i in range(len(versions_list)):
 			json_body = versions_list[i]
-			
-			json_body.update({'alarm':alarm_list[i],'status':status_list[i], 'card':cards[i], 'warning':warning_list[i],'update':timestampStr})
-			server.index(index=self.ip, id=cards[i], body=json_body)
+			json_body.update({'alarm':alarm_list[i],'status':status_list[i], 'card':cards[i], 'warning':warning_list[i],'update':timestampStr, 'hostname':self.ip})
+			server.index(index='icepap_info', id=self.ip + '_' + str(cards[i]), body=json_body)
 		
 
 	
 	def update_status(self, server):
 		"""
-		Updates the status and alarm status of all cards in a
-		locker at adress 'ip'. Changes are made to the doc at
+		Updates the status, alarm status and warnings of all 
+		cards in a locker at adress 'ip'. Changes are made 
+		to the Elasticsearch doc at
 
-		<ip>/_doc/icepap_nr
+		icepap_info/_doc/<hostname>_<cardNbr>
 
 		This method is much faster than setup_cards() since we
 		don't have to extract the version data. 
 
 		"""
+
 		cards = self.ice.getCardsAlive()
 		alarm_list = self.ice.getAlarmStatus()
 		status_list = self.ice.getStatus()
@@ -65,15 +66,15 @@ class ElasticClient:
 		dateTimeObj = datetime.now()
 		timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S)")
 		for i in range(len(cards)):
-			json_body = {'alarm':alarm_list[i], 'status':status_list[i], 'warning':warning_list[i], 'update':timestampStr}
-			server.update(index=self.ip, id=cards[i], body={"doc":json_body})
+			json_body = {'alarm':alarm_list[i], 'status':status_list[i], 'warning':warning_list[i], 'update':timestampStr, 'hostname':self.ip}
+			server.update(index='icepap_info', id=self.ip + '_' + str(cards[i]), body={"doc":json_body})
 
 
-def get_icepapcms_host():
+def get_icepapcms_host(cabledb):
 	"""
 	Returns a list of all IcePAP hostnames in the network
 	"""
-	connector = db.connect("w-v-kitslab-csdb-0",  "icepapcms","icepapcms", "icepapcms", port=3306)
+	connector = db.connect(cabledb,  "icepapcms","icepapcms", "icepapcms", port=3306)
 	cursor = connector.cursor()
 	sql_query = "SELECT host FROM icepapsystem;"
 	size = cursor.execute(sql_query)
@@ -89,65 +90,50 @@ def get_icepapcms_host():
 	return ips
 
 
-def main():
-	ips = get_icepapcms_host() 
-	"""[
-			'w-kitslab-icepap-0',
-			'w-kitslab-icepap-10',
-			'w-kitslab-icepap-19',
-			'w-maglab-icepap-0',
-			'w-v-kitslab-icepap-ec-0',
-			'w-kitslab-icepap-20',
-			'w-kitslab-icepap-16',
-			'w-v-kitslab-icepap-cc-0',
-			'w-kitslab-icepap-17',
-			'w-kitslab-icepap-18',
-			'w-kitslab-icepap-47',
-			'w-kitslab-icepap-11',
-			'w-kitslab-icepap-12',
-			'w-kitslab-icepap-83',
-			'w-icepap-pc-0',
-			'w-kitslab-icepap-14',
-			'w-kitslab-icepap-15'
-		]"""
-
+def restart_index(ips, server):
+	"""
+	Used to initiate, but mostly restart the index after a
+	given time period
+	"""
 	icepaps = []
 
 #CREATING ICEPAP PARSERS FOR EVERY ADRESS IN ips
 	for ip in ips:
 		icepaps.append(ElasticClient(ip))
 	
-	# Actually works!!!
-	
-	server = Elasticsearch(['localhost:9200'])
 	for icepap in icepaps:
 		icepap.setup_cards(server)
-		print icepap.ip + " done"
 
-	server.index(index='test', id=21, body={"change":1})
-	"""
-	parsers[11].setup_cards(server)
-	print server.get(index='w-kitslab-icepap-11', id=0)['_source']
-	"""
-	#Start connection to server:
-	#es = Elasticsearch(['localhost:9200'])
+	print "- - - - - " + datetime.now().strftime("%d-%b-%Y (%H:%M:%S)") + " - - - - -"
+	return icepaps
+
+
+def main():
+	cabledb = sys.argv[1]
+
+	ips = get_icepapcms_host(cabledb)
+	server = Elasticsearch(['localhost:9200'])
+	icepaps = restart_index(ips, server)
+
 
 	#Runs script indefinetly
-	print "All done"
+	update_time = datetime.now() + timedelta(minutes=15)
+
 	while True:
 		try:
-			time.sleep(5)
-			count = 1
+			time.sleep(10)
 			for icepap in icepaps:
 				icepap.update_status(server)
-				print icepap.ip + ' updated'
-				count += 1
-				server.index(index='test', id=21, body={"change":count})
+
+			if update_time < datetime.now():
+				ips = get_icepapcms_host(cabledb)
+				server.indices.delete(index='icepap_info', ignore=[400, 404])
+				icepaps = restart_index(ips,server)
+				update_time = datetime.now() + timedelta(minutes=15)
 		except KeyboardInterrupt:
 			print '\nClosing'
 			sys.exit(0)
-
-
+	
 
 if __name__=='__main__':
 	main()
